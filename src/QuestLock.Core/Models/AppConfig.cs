@@ -29,7 +29,7 @@ public class ServerConfig
     public string AdminPinSalt { get; set; } = "c29tZV9yYW5kb21fc2FsdA==";
 
     [JsonPropertyName("quick_unlock_key")]
-    public string QuickUnlockKey { get; set; } = "mamka";
+    public string QuickUnlockKey { get; set; } = string.Empty;
 }
 
 public class RulesConfig
