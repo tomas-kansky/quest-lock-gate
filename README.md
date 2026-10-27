@@ -58,6 +58,7 @@ Podrobné analýzy, architektonické návrhy a datové modely naleznete ve slož
 
 - 📐 **[ARCHITECTURE.md](docs/ARCHITECTURE.md):** Kompletní systémová specifikace (Two-Tier model, Windows Service, spolehlivý Kiosk, životní cyklus, noční režim spánku).
 - 📜 **[CONTRACTS.md](docs/CONTRACTS.md):** Datové kontrakty (`config.json`, `state.json`), IPC komunikační protokol (Named Pipes), REST API pro port 5001 a algoritmus generování příkladů.
+- 🛡️ **[RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md):** Pravidla větvení, ochrana větve `main`, sémantické verzování a kontrolní seznam pro bezpečné vydávání nových verzí.
 
 ---
 
