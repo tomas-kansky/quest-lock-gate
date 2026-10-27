@@ -34,16 +34,32 @@ Get-Process -Name "QuestLock.UI" -ErrorAction SilentlyContinue | Stop-Process -F
 Get-Process -Name "QuestLock.Guardian" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 1
 
-# 3. Sestavení a publikace aplikací (.NET Publish)
+# 3. Příprava a instalace binárek
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 
-Write-Host "`n[2/6] Sestavování a publikace komponent..." -ForegroundColor Yellow
-Write-Host "  Publikuji QuestLock.Guardian (Služba + Web)..."
-dotnet publish "$ProjectRoot\src\QuestLock.Guardian\QuestLock.Guardian.csproj" -c Release -o "$GuardianDir" --nologo -v q
+if (-not (Test-Path $InstallDir)) {
+    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+}
+if (-not (Test-Path $GuardianDir)) {
+    New-Item -ItemType Directory -Path $GuardianDir -Force | Out-Null
+}
+if (-not (Test-Path $UiDir)) {
+    New-Item -ItemType Directory -Path $UiDir -Force | Out-Null
+}
 
-Write-Host "  Publikuji QuestLock.UI (Klientská aplikace)..."
-dotnet publish "$ProjectRoot\src\QuestLock.UI\QuestLock.UI.csproj" -c Release -o "$UiDir" --nologo -v q
+Write-Host "`n[2/6] Příprava a kopírování programových souborů..." -ForegroundColor Yellow
+
+# Zjistit, zda instalujeme z hotového balíčku (Self-Contained) nebo ze zdrojových kódů
+if ((Test-Path "$ScriptDir\Guardian") -and (Test-Path "$ScriptDir\UI")) {
+    Write-Host "  Detekován hotový distribuční balíček (nevyžaduje .NET SDK)..."
+    Copy-Item -Path "$ScriptDir\Guardian\*" -Destination "$GuardianDir" -Recurse -Force
+    Copy-Item -Path "$ScriptDir\UI\*" -Destination "$UiDir" -Recurse -Force
+} else {
+    Write-Host "  Detekovány zdrojové kódy, provádím kompilaci (.NET Publish)..."
+    dotnet publish "$ProjectRoot\src\QuestLock.Guardian\QuestLock.Guardian.csproj" -c Release -o "$GuardianDir" --nologo -v q
+    dotnet publish "$ProjectRoot\src\QuestLock.UI\QuestLock.UI.csproj" -c Release -o "$UiDir" --nologo -v q
+}
 
 # 4. Inicializace datové složky ProgramData
 Write-Host "`n[3/6] Inicializace systémové konfigurace..." -ForegroundColor Yellow

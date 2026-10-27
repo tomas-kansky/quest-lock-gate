@@ -29,6 +29,7 @@ obj/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+*.code-workspace
 
 # Node / Web UI (if frontend bundle is used)
 node_modules/
