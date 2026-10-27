@@ -1,0 +1,43 @@
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+
+# Velopack releases / packages
+[Rr]eleases/
+[Pp]ackages/
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Node / Web UI (if frontend bundle is used)
+node_modules/
+dist/
+.cache/
+
+# Local configuration overrides & secrets
+*.local.json
+secrets.json
+
+# Logs
+*.log

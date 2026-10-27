@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{84730C4C-C258-412B-8B68-2A58FC1E0CAA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuestLock.Core", "src\QuestLock.Core\QuestLock.Core.csproj", "{73328381-448D-4919-9400-8D6E00F61E08}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuestLock.Guardian", "src\QuestLock.Guardian\QuestLock.Guardian.csproj", "{332A2473-A5C9-4BF9-8633-427D881F790A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuestLock.UI", "src\QuestLock.UI\QuestLock.UI.csproj", "{4793DEE0-0764-4750-88DA-64C74D9D8119}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{61D9C14E-E0F8-4879-A8DB-5AEA0E13D825}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuestLock.Core.Tests", "tests\QuestLock.Core.Tests\QuestLock.Core.Tests.csproj", "{E5A73410-9060-4A88-AEB1-4001642D65FF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{73328381-448D-4919-9400-8D6E00F61E08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73328381-448D-4919-9400-8D6E00F61E08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73328381-448D-4919-9400-8D6E00F61E08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73328381-448D-4919-9400-8D6E00F61E08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{332A2473-A5C9-4BF9-8633-427D881F790A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{332A2473-A5C9-4BF9-8633-427D881F790A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{332A2473-A5C9-4BF9-8633-427D881F790A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{332A2473-A5C9-4BF9-8633-427D881F790A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4793DEE0-0764-4750-88DA-64C74D9D8119}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4793DEE0-0764-4750-88DA-64C74D9D8119}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4793DEE0-0764-4750-88DA-64C74D9D8119}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4793DEE0-0764-4750-88DA-64C74D9D8119}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5A73410-9060-4A88-AEB1-4001642D65FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5A73410-9060-4A88-AEB1-4001642D65FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5A73410-9060-4A88-AEB1-4001642D65FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5A73410-9060-4A88-AEB1-4001642D65FF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{73328381-448D-4919-9400-8D6E00F61E08} = {84730C4C-C258-412B-8B68-2A58FC1E0CAA}
+		{332A2473-A5C9-4BF9-8633-427D881F790A} = {84730C4C-C258-412B-8B68-2A58FC1E0CAA}
+		{4793DEE0-0764-4750-88DA-64C74D9D8119} = {84730C4C-C258-412B-8B68-2A58FC1E0CAA}
+		{E5A73410-9060-4A88-AEB1-4001642D65FF} = {61D9C14E-E0F8-4879-A8DB-5AEA0E13D825}
+	EndGlobalSection
+EndGlobal
