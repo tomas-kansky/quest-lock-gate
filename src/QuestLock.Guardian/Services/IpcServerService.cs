@@ -1,4 +1,6 @@
-using System.IO.Pipes;
+﻿using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using QuestLock.Core.Ipc;
@@ -30,12 +32,7 @@ public class IpcServerService : BackgroundService
         {
             try
             {
-                var pipeServer = new NamedPipeServerStream(
-                    IpcConstants.PipeName,
-                    PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                var pipeServer = CreateNamedPipeServer();
 
                 await pipeServer.WaitForConnectionAsync(stoppingToken);
 
@@ -237,5 +234,33 @@ public class IpcServerService : BackgroundService
                 _logger.LogDebug(ex, "Chyba při odesílání FORCE_LOCK zprávy klientovi");
             }
         }
+    }
+    private static NamedPipeServerStream CreateNamedPipeServer()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var pipeSecurity = new PipeSecurity();
+            pipeSecurity.AddAccessRule(new PipeAccessRule(
+                new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+                PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                AccessControlType.Allow));
+
+            return NamedPipeServerStreamAcl.Create(
+                IpcConstants.PipeName,
+                PipeDirection.InOut,
+                NamedPipeServerStream.MaxAllowedServerInstances,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous,
+                inBufferSize: 0,
+                outBufferSize: 0,
+                pipeSecurity: pipeSecurity);
+        }
+
+        return new NamedPipeServerStream(
+            IpcConstants.PipeName,
+            PipeDirection.InOut,
+            NamedPipeServerStream.MaxAllowedServerInstances,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
     }
 }
