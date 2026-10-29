@@ -208,4 +208,34 @@ public class IpcServerService : BackgroundService
             }
         }
     }
+
+    public async Task BroadcastForceLockAsync()
+    {
+        _logger.LogInformation("Vysílám FORCE_LOCK signál všem připojeným IPC klientům...");
+
+        var msg = new IpcMessage
+        {
+            Type = IpcMessageTypes.ForceLock
+        };
+
+        var json = JsonSerializer.Serialize(msg);
+
+        List<StreamWriter> clientsCopy;
+        lock (_clientsLock)
+        {
+            clientsCopy = _activeClients.ToList();
+        }
+
+        foreach (var client in clientsCopy)
+        {
+            try
+            {
+                await client.WriteLineAsync(json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Chyba při odesílání FORCE_LOCK zprávy klientovi");
+            }
+        }
+    }
 }

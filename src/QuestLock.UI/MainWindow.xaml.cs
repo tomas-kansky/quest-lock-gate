@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
         // IPC komunikace se systémovou službou
         _ipcClient.OnUnlockGranted += IpcClient_OnUnlockGranted;
+        _ipcClient.OnForceLockRequested += IpcClient_OnForceLockRequested;
         _ipcClient.Start();
     }
 
@@ -386,6 +387,16 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             UnlockAndHide();
+        });
+    }
+
+    private void IpcClient_OnForceLockRequested()
+    {
+        // Okamžité studium vyvolané z administrace
+        Dispatcher.Invoke(() =>
+        {
+            _isLockActive = false;
+            ShowLock();
         });
     }
 

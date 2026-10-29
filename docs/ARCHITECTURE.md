@@ -142,17 +142,18 @@ Generátor běží přímo v aplikaci a nepotřebuje připojení k síti.
 
 Služba `QuestLock.Guardian` hostuje odlehčený webový server (ASP.NET Core Kestrel) běžící na portu `5001`.
 
-### Schéma komunikace:
-- **Adresa:** `http://<IP_BRATROVA_PC>:5001` (nebo `http://questlock.local:5001` přes mDNS/LLMNR).
-- **Zabezpečení:** Všechny chráněné endpointy a webový dashboard vyžadují zadání administrátorského PIN kódu. V konfiguračním souboru je uložen pouze salted SHA-256 hash PINu.
-- **Web Dashboard (UI):**
+### Schéma komunikace a webové rozhraní:
+- **Hlavní rozcestník:** `http://<IP_BRATROVA_PC>:5001/administration`
+- **Přímé akce:**
+  - **`http://<IP_BRATROVA_PC>:5001/day-off`**: Udělení Dne volna (zruší příklady a odemkne PC).
+  - **`http://<IP_BRATROVA_PC>:5001/study-now`**: Okamžité studium (vyvolá novou sadu příkladů na PC).
+- **Správa pravidel:** `http://<IP_BRATROVA_PC>:5001/settings`
   - Responzivní webová stránka (HTML5/CSS/JS) přímo servírovaná službou.
   - Možnost konfigurace:
     - Přepínače operací: `[x] Sčítání`, `[x] Odčítání`, `[x] Násobení`, `[x] Dělení`.
-    - Vstup pro `max_number` (např. 10, 20, 100).
+    - Vstup pro `max_number` (např. 100, 200).
     - Vstup pro `total_questions` (počet otázek).
     - Zobrazení aktuálního stavu: Dnes splněno / Čeká na splnění / Čas dokončení.
-    - Manuální tlačítka pro okamžité odemčení / zamčení.
 
 ---
 

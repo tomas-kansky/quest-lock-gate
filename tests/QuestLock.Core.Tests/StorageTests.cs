@@ -74,4 +74,26 @@ public class StorageTests : IDisposable
         Assert.True(updated.ManualOverride.Active);
         Assert.Equal("mamka", updated.ManualOverride.UnlockedBy);
     }
+
+    [Fact]
+    public void StateManager_ForceStudy_ResetsCompletedState()
+    {
+        var statePath = Path.Combine(_tempDir, "state.json");
+        var manager = new StateManager(statePath);
+
+        var today = "2026-10-29";
+        manager.MarkCompleted(today, durationSeconds: 50);
+
+        var completedState = manager.Load();
+        Assert.False(completedState.IsLocked);
+        Assert.True(completedState.IsCompletedToday(today));
+
+        // Aktivace okamžitého studia
+        manager.ForceStudy();
+
+        var forcedState = manager.Load();
+        Assert.True(forcedState.IsLocked);
+        Assert.Null(forcedState.LastCompletedDate);
+        Assert.False(forcedState.IsCompletedToday(today));
+    }
 }
