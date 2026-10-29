@@ -1,16 +1,16 @@
-# QuestLock Gate – Odinstalační skript
-# Vyžaduje spuštění jako Správce (Administrator)
+# QuestLock Gate - Odinstalacni skript
+# Vyzaduje spusteni jako Spravce (Administrator)
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "==================================================" -ForegroundColor Yellow
-Write-Host "       QuestLock Gate – Odinstalace               " -ForegroundColor Yellow
+Write-Host "       QuestLock Gate - Odinstalace               " -ForegroundColor Yellow
 Write-Host "==================================================" -ForegroundColor Yellow
 
-# 1. Kontrola administrátorských práv
+# 1. Kontrola administratorskych prav
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
-    Write-Error "Tento skript musí být spuštěn jako Správce (Run as Administrator)!"
+    Write-Error "Tento skript musi byt spusten jako Spravce (Run as Administrator)!"
     exit 1
 }
 
@@ -18,37 +18,42 @@ $InstallDir = "$env:ProgramFiles\QuestLock"
 $ServiceName = "QuestLock.Guardian"
 $FirewallRuleName = "QuestLock Gate Remote Unlock (Port 5001)"
 
-# 2. Zastavení a odstranění služby
-Write-Host "`n[1/4] Zastavování a odstraňování Windows Service..." -ForegroundColor Yellow
+# 2. Zastaveni a odstraneni sluzby
+Write-Host ""
+Write-Host "[1/4] Zastavovani a odstranovani Windows Service..." -ForegroundColor Yellow
 $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($service) {
     if ($service.Status -eq "Running") {
         Stop-Service -Name $ServiceName -Force
     }
     sc.exe delete $ServiceName | Out-Null
-    Write-Host "  Služba $ServiceName byla smazána."
+    Write-Host "  Sluzba $ServiceName byla smazana."
 }
 
-# 3. Ukončení procesů
-Write-Host "`n[2/4] Ukončování procesů..." -ForegroundColor Yellow
+# 3. Ukonceni procesu
+Write-Host ""
+Write-Host "[2/4] Ukoncovani procesu..." -ForegroundColor Yellow
 Get-Process -Name "QuestLock.UI" -ErrorAction SilentlyContinue | Stop-Process -Force
 Get-Process -Name "QuestLock.Guardian" -ErrorAction SilentlyContinue | Stop-Process -Force
 
-# 4. Odstranění z autostartu
-Write-Host "`n[3/4] Odebírání z automatického spouštění..." -ForegroundColor Yellow
+# 4. Odstraneni z autostartu
+Write-Host ""
+Write-Host "[3/4] Odebirani z automatickeho spousteni..." -ForegroundColor Yellow
 $RunKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run"
 Remove-ItemProperty -Path $RunKey -Name "QuestLockGate" -ErrorAction SilentlyContinue
 
-# 5. Odstranění pravidla z Firewallu
+# 5. Odstraneni pravidla z Firewallu
 Remove-NetFirewallRule -DisplayName $FirewallRuleName -ErrorAction SilentlyContinue
 
-# 6. Odstranění instalačních souborů
-Write-Host "`n[4/4] Mazání aplikačních souborů..." -ForegroundColor Yellow
+# 6. Odstraneni instalacnich souboru
+Write-Host ""
+Write-Host "[4/4] Mazani aplikacnich souboru..." -ForegroundColor Yellow
 if (Test-Path $InstallDir) {
     Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
-    Write-Host "  Složka $InstallDir byla odstraněna."
+    Write-Host "  Slozka $InstallDir byla odstranena."
 }
 
-Write-Host "`n==================================================" -ForegroundColor Green
-Write-Host "   QuestLock Gate byl úspěšně odinstalován.      " -ForegroundColor Green
+Write-Host ""
+Write-Host "==================================================" -ForegroundColor Green
+Write-Host "   QuestLock Gate byl uspesne odinstalovan.      " -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
