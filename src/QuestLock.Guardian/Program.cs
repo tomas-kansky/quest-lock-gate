@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using QuestLock.Core.Models;
 using QuestLock.Core.Storage;
@@ -16,19 +16,23 @@ var builder = WebApplication.CreateBuilder(options);
 builder.Host.UseWindowsService();
 
 // Konfigurace Kestrelu na port 5001 pro celou lokální síť
-builder.WebHost.ConfigureKestrel(options =>
+builder.WebHost.ConfigureKestrel(kestrelOptions =>
 {
-    options.ListenAnyIP(5001);
+    kestrelOptions.ListenAnyIP(5001);
 });
 
 // Registrace core služeb
 var configManager = new ConfigManager();
 var stateManager = new StateManager();
+var logManager = new LogManager();
 
 builder.Services.AddSingleton(configManager);
 builder.Services.AddSingleton(stateManager);
+builder.Services.AddSingleton(logManager);
 builder.Services.AddSingleton<IpcServerService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<IpcServerService>());
+
+logManager.Info("Guardian", "STARTUP", "QuestLock Guardian Service nastartovala Kestrel web server na portu 5001.");
 
 var app = builder.Build();
 
@@ -70,10 +74,14 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
         * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
         body {{ background: #0f172a; color: #f8fafc; min-height: 100vh; padding: 20px; display: flex; justify-content: center; }}
         .container {{ width: 100%; max-width: 500px; }}
-        .header {{ text-align: center; margin-bottom: 24px; padding-top: 10px; }}
+        .header {{ text-align: center; margin-bottom: 20px; padding-top: 10px; }}
         .header h1 {{ font-size: 26px; font-weight: 800; color: #ffffff; margin-bottom: 4px; }}
         .header p {{ color: #94a3b8; font-size: 14px; }}
         
+        .nav-links {{ display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }}
+        .nav-link {{ background: #1e293b; color: #94a3b8; text-decoration: none; padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid #334155; transition: all 0.2s; }}
+        .nav-link:hover {{ background: #334155; color: #ffffff; }}
+
         .card {{ background: #1e293b; border-radius: 24px; padding: 24px; border: 1px solid #334155; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4); }}
         .card h2 {{ font-size: 17px; font-weight: 700; color: #e2e8f0; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }}
         
@@ -111,6 +119,12 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
         <div class=""header"">
             <h1>QuestLock Gate</h1>
             <p>Centrální správa a dohled nad herním počítačem</p>
+        </div>
+
+        <div class=""nav-links"">
+            <a href=""/activity"" class=""nav-link"">📊 Přehled aktivity</a>
+            <a href=""/logs"" class=""nav-link"">🤖 AI Diagnostika & Logy</a>
+            <a href=""/settings"" class=""nav-link"">⚙️ Pravidla</a>
         </div>
 
         <div id=""feedbackMsg"" class=""msg""></div>
@@ -225,7 +239,340 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
 });
 
 // ==========================================
-// 2. NASTAVENÍ PRAVIDEL (/settings)
+// 2. DIAGNOSTIKA & AI LOGY (/logs)
+// ==========================================
+const string LogsHtmlTemplate = @"<!DOCTYPE html>
+<html lang=""cs"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>QuestLock Gate – Diagnostika & AI Logy</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; }
+        body { background: #0b1120; color: #f8fafc; min-height: 100vh; padding: 20px; }
+        .header { max-width: 1100px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 22px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+        .nav-links { display: flex; gap: 10px; }
+        .nav-link { background: #1e293b; color: #94a3b8; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; border: 1px solid #334155; }
+        .nav-link:hover { background: #334155; color: white; }
+
+        .main-card { max-width: 1100px; margin: 0 auto 20px; background: #1e293b; border-radius: 20px; padding: 20px; border: 1px solid #334155; }
+        .ai-banner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #0f172a; padding: 18px 20px; border-radius: 16px; border: 1px solid #0284c7; margin-bottom: 20px; }
+        .ai-banner h2 { font-size: 17px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; }
+        .ai-banner p { font-size: 13px; color: #94a3b8; }
+
+        .btn-ai { background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .btn-ai:active { transform: scale(0.97); }
+        .btn-raw { background: #334155; color: #cbd5e1; border: 1px solid #475569; padding: 8px 14px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600; }
+
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+        .filters { display: flex; gap: 6px; }
+        .filter-btn { background: #0f172a; color: #94a3b8; border: 1px solid #334155; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .filter-btn.active { background: #38bdf8; color: #0f172a; font-weight: 700; border-color: #38bdf8; }
+
+        .table-wrap { overflow-x: auto; background: #0f172a; border-radius: 12px; border: 1px solid #334155; max-height: 600px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th { background: #1e293b; color: #94a3b8; font-weight: 700; padding: 10px 14px; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #334155; }
+        td { padding: 10px 14px; border-bottom: 1px solid #1e293b; vertical-align: top; font-family: 'Consolas', 'Courier New', monospace; }
+        
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .badge-info { background: #0369a1; color: #bae6fd; }
+        .badge-warn { background: #854d0e; color: #fef08a; }
+        .badge-error { background: #991b1b; color: #fecaca; }
+        .badge-debug { background: #334155; color: #cbd5e1; }
+        
+        .col-time { color: #64748b; white-space: nowrap; width: 110px; }
+        .col-level { width: 80px; text-align: center; }
+        .col-source { color: #a78bfa; width: 90px; }
+        .col-event { color: #f59e0b; width: 150px; font-weight: 600; }
+        .col-msg { color: #e2e8f0; }
+        .log-details { display: block; margin-top: 4px; color: #64748b; font-size: 11px; }
+
+        .alert-toast { position: fixed; bottom: 20px; right: 20px; background: #15803d; color: white; padding: 14px 20px; border-radius: 12px; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; z-index: 100; }
+        .alert-toast.show { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class=""header"">
+        <h1>🤖 QuestLock Gate – AI Diagnostika & Logy</h1>
+        <div class=""nav-links"">
+            <a href=""/administration"" class=""nav-link"">← Administrace</a>
+            <a href=""/activity"" class=""nav-link"">📊 Přehled aktivity</a>
+            <a href=""/settings"" class=""nav-link"">⚙️ Pravidla</a>
+        </div>
+    </div>
+
+    <div class=""main-card"">
+        <div class=""ai-banner"">
+            <div>
+                <h2>Strukturovaný balíček pro analýzu umělou inteligencí</h2>
+                <p>Zkopíruje kompletní kontext (verze, stav, konfiguraci a posledních 50 událostí) do Markdownu. Stačí vložit do promptu s dotazem.</p>
+            </div>
+            <button class=""btn-ai"" onclick=""copyAiDiagnostics()"">📋 Kopírovat pro AI</button>
+        </div>
+
+        <div class=""controls"">
+            <div class=""filters"">
+                <button class=""filter-btn active"" onclick=""filterLogs('ALL', this)"">Vše (<!--COUNT-->)</button>
+                <button class=""filter-btn"" onclick=""filterLogs('ERROR', this)"">Jen Chyby</button>
+                <button class=""filter-btn"" onclick=""filterLogs('WARN', this)"">Varování</button>
+                <button class=""filter-btn"" onclick=""filterLogs('UI', this)"">Jen Kiosk (UI)</button>
+                <button class=""filter-btn"" onclick=""filterLogs('GUARDIAN', this)"">Jen Služba</button>
+            </div>
+            <a href=""/api/logs/raw"" class=""btn-raw"" target=""_blank"" download=""questlock.log"">📥 Stáhnout kompletní .log</a>
+        </div>
+
+        <div class=""table-wrap"">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Čas</th>
+                        <th>Úroveň</th>
+                        <th>Zdroj</th>
+                        <th>Událost</th>
+                        <th>Zpráva & Detaily</th>
+                    </tr>
+                </thead>
+                <tbody id=""logsTableBody"">
+                    <!--ROWS-->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id=""toast"" class=""alert-toast"">✅ Diagnostický bundle byl zkopírován do schránky!</div>
+
+    <script>
+        async function copyAiDiagnostics() {
+            try {
+                const resp = await fetch('/api/diagnostics/bundle');
+                const data = await resp.json();
+
+                const logLines = (data.logs || []).map(function(l) {
+                    var dt = new Date(l.timestamp).toISOString();
+                    var details = '';
+                    if (l.details) {
+                        details = ' | ' + Object.keys(l.details).map(function(k) { return k + '=' + l.details[k]; }).join(', ');
+                    }
+                    return '[' + dt + '] [' + l.level + '] [' + l.source + '] [' + l.event + '] ' + l.message + details;
+                });
+
+                var md = '# QuestLock Gate – Diagnostický balíček pro AI\n' +
+                    '> Generováno: ' + data.generated_at + '\n\n' +
+                    '## 1. Systém a prostředí\n```json\n' +
+                    JSON.stringify(data.system, null, 2) + '\n```\n\n' +
+                    '## 2. Aktuální stav (state.json)\n```json\n' +
+                    JSON.stringify(data.state, null, 2) + '\n```\n\n' +
+                    '## 3. Aktuální pravidla (config.json)\n```json\n' +
+                    JSON.stringify(data.config, null, 2) + '\n```\n\n' +
+                    '## 4. Poslední události systému\n```log\n' +
+                    logLines.join('\n') + '\n```\n';
+
+                await navigator.clipboard.writeText(md);
+
+                const toast = document.getElementById('toast');
+                toast.className = 'alert-toast show';
+                setTimeout(function() { toast.className = 'alert-toast'; }, 4000);
+            } catch (err) {
+                alert('Chyba při kopírování: ' + err);
+            }
+        }
+
+        function filterLogs(filter, btn) {
+            document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            if (btn) btn.classList.add('active');
+
+            const rows = document.querySelectorAll('.log-row');
+            rows.forEach(function(r) {
+                if (filter === 'ALL') {
+                    r.style.display = '';
+                } else if (filter === 'ERROR') {
+                    r.style.display = r.classList.contains('level-error') ? '' : 'none';
+                } else if (filter === 'WARN') {
+                    r.style.display = r.classList.contains('level-warn') ? '' : 'none';
+                } else if (filter === 'UI') {
+                    r.style.display = r.classList.contains('source-ui') ? '' : 'none';
+                } else if (filter === 'GUARDIAN') {
+                    r.style.display = r.classList.contains('source-guardian') ? '' : 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>";
+
+app.MapGet("/logs", (LogManager logs, HttpRequest request) =>
+{
+    var recent = logs.GetRecentLogs(limit: 100);
+
+    var rowsHtml = string.Join("\n", recent.Select(entry =>
+    {
+        var localTime = entry.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff");
+        var badgeClass = entry.Level switch
+        {
+            "ERROR" => "badge-error",
+            "WARN" => "badge-warn",
+            "DEBUG" => "badge-debug",
+            _ => "badge-info"
+        };
+        var details = entry.Details != null && entry.Details.Count > 0
+            ? "<span class='log-details'>" + string.Join(" ", entry.Details.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + "</span>"
+            : "";
+
+        return $@"<tr class='log-row level-{entry.Level.ToLowerInvariant()} source-{entry.Source.ToLowerInvariant()}'>
+            <td class='col-time'>{localTime}</td>
+            <td class='col-level'><span class='badge {badgeClass}'>{entry.Level}</span></td>
+            <td class='col-source'>{entry.Source}</td>
+            <td class='col-event'>{entry.Event}</td>
+            <td class='col-msg'>{System.Net.WebUtility.HtmlEncode(entry.Message)} {details}</td>
+        </tr>";
+    }));
+
+    var html = LogsHtmlTemplate
+        .Replace("<!--COUNT-->", recent.Count.ToString())
+        .Replace("<!--ROWS-->", rowsHtml);
+
+    return Results.Content(html, "text/html; charset=utf-8");
+});
+
+// ==========================================
+// 3. RODIČOVSKÝ PŘEHLED AKTIVITY (/activity)
+// ==========================================
+const string ActivityHtmlTemplate = @"<!DOCTYPE html>
+<html lang=""cs"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"">
+    <title>QuestLock Gate – Přehled aktivity</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; min-height: 100vh; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-top: 10px; }
+        .header h1 { font-size: 22px; font-weight: 800; color: #ffffff; }
+        .header a { color: #38bdf8; text-decoration: none; font-size: 14px; font-weight: 600; }
+
+        .card { background: #1e293b; border-radius: 24px; padding: 24px; border: 1px solid #334155; margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4); }
+        .card h2 { font-size: 16px; font-weight: 700; color: #e2e8f0; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .stat-box { background: #0f172a; padding: 14px; border-radius: 14px; border: 1px solid #334155; text-align: center; }
+        .stat-lbl { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+        .stat-val { font-size: 20px; font-weight: 800; color: #38bdf8; }
+
+        .event-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #0f172a; border-radius: 12px; border: 1px solid #334155; margin-bottom: 8px; font-size: 13px; }
+        .event-time { color: #64748b; font-size: 12px; font-family: monospace; padding-top: 2px; }
+        .event-icon { font-size: 16px; }
+        .event-msg { flex: 1; font-weight: 600; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h1>Přehled aktivity bratra</h1>
+            <a href=""/administration"">← Administrace</a>
+        </div>
+
+        <div class=""card"">
+            <h2>Dnešní statistika (<!--TODAY-->)</h2>
+            <div class=""stats-grid"">
+                <div class=""stat-box"">
+                    <div class=""stat-lbl"">Stav dneška</div>
+                    <div class=""stat-val"" style=""color: <!--STATUS_COLOR-->;"">
+                        <!--STATUS_TEXT-->
+                    </div>
+                </div>
+                <div class=""stat-box"">
+                    <div class=""stat-lbl"">Doba řešení</div>
+                    <div class=""stat-val"">
+                        <!--DURATION-->
+                    </div>
+                </div>
+            </div>
+            <div class=""stats-grid"">
+                <div class=""stat-box"">
+                    <div class=""stat-lbl"">Správných odpovědí</div>
+                    <div class=""stat-val""><!--CORRECT--> / <!--TOTAL--></div>
+                </div>
+                <div class=""stat-box"">
+                    <div class=""stat-lbl"">Poslední splnění</div>
+                    <div class=""stat-val"" style=""font-size: 15px; padding-top: 4px;"">
+                        <!--LAST_TIME-->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class=""card"">
+            <h2>Časová osa pokusů a událostí</h2>
+            <div>
+                <!--EVENTS-->
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+
+app.MapGet("/activity", (StateManager state, ConfigManager cfg, LogManager logs) =>
+{
+    var s = state.Load();
+    var c = cfg.Load();
+    var today = DateTime.Now.ToString("yyyy-MM-dd");
+    var isCompleted = s.IsCompletedToday(today);
+
+    var recentLogs = logs.GetRecentLogs(limit: 100);
+    var mathAttempts = recentLogs
+        .Where(l => l.Event is "ANSWER_CORRECT" or "ANSWER_INCORRECT" or "MATH_COMPLETED" or "REMOTE_UNLOCK_RECEIVED" or "FORCE_LOCK_RECEIVED" or "LOCK_ENGAGED")
+        .ToList();
+
+    var eventsHtml = string.Join("\n", mathAttempts.Select(e =>
+    {
+        var localTime = e.Timestamp.ToLocalTime().ToString("HH:mm:ss");
+        var icon = e.Event switch
+        {
+            "ANSWER_CORRECT" => "✅",
+            "ANSWER_INCORRECT" => "❌",
+            "MATH_COMPLETED" => "🏆",
+            "REMOTE_UNLOCK_RECEIVED" => "🏖️",
+            "FORCE_LOCK_RECEIVED" => "⚡",
+            _ => "ℹ️"
+        };
+        var color = e.Event switch
+        {
+            "ANSWER_CORRECT" => "#4ade80",
+            "ANSWER_INCORRECT" => "#f87171",
+            "MATH_COMPLETED" => "#38bdf8",
+            _ => "#cbd5e1"
+        };
+
+        return $@"<div class=""event-item"">
+            <div class=""event-time"">{localTime}</div>
+            <div class=""event-icon"">{icon}</div>
+            <div class=""event-msg"" style=""color: {color};"">{System.Net.WebUtility.HtmlEncode(e.Message)}</div>
+        </div>";
+    }));
+
+    if (string.IsNullOrWhiteSpace(eventsHtml))
+    {
+        eventsHtml = "<div style='color: #64748b; text-align: center; padding: 20px;'>Zatím dnes nebyla zaznamenána žádná aktivita bratra.</div>";
+    }
+
+    var html = ActivityHtmlTemplate
+        .Replace("<!--TODAY-->", today)
+        .Replace("<!--STATUS_COLOR-->", isCompleted ? "#4ade80" : "#f87171")
+        .Replace("<!--STATUS_TEXT-->", isCompleted ? "Hotovo" : "Nesplněno")
+        .Replace("<!--DURATION-->", s.TodayStats.DurationSeconds > 0 ? $"{s.TodayStats.DurationSeconds} s" : "—")
+        .Replace("<!--CORRECT-->", s.TodayStats.CorrectAnswers.ToString())
+        .Replace("<!--TOTAL-->", c.Math.TotalQuestions.ToString())
+        .Replace("<!--LAST_TIME-->", s.LastCompletedAt.HasValue ? s.LastCompletedAt.Value.ToLocalTime().ToString("HH:mm") : "Zatím ne")
+        .Replace("<!--EVENTS-->", eventsHtml);
+
+    return Results.Content(html, "text/html; charset=utf-8");
+});
+
+// ==========================================
+// 4. NASTAVENÍ PRAVIDEL (/settings)
 // ==========================================
 app.MapGet("/settings", (ConfigManager cfg, StateManager state) =>
 {
@@ -384,7 +731,7 @@ app.MapGet("/settings", (ConfigManager cfg, StateManager state) =>
 });
 
 // ==========================================
-// 3. PŘÍMÉ ODKAZY PRO URL KLIKNUTÍ (DAY-OFF & STUDY-NOW)
+// 5. PŘÍMÉ ODKAZY PRO URL KLIKNUTÍ (DAY-OFF & STUDY-NOW)
 // ==========================================
 
 // Přímý odkaz pro udělení Dne volna: GET /day-off nebo /action/day-off
@@ -392,15 +739,18 @@ var handleDayOffDirect = async (
     [FromQuery] string? key,
     ConfigManager cfg,
     StateManager state,
-    IpcServerService ipc) =>
+    IpcServerService ipc,
+    LogManager logs) =>
 {
     var currentConfig = cfg.Load();
     if (!string.IsNullOrEmpty(currentConfig.Server.QuickUnlockKey) && currentConfig.Server.QuickUnlockKey != key)
     {
+        logs.Warn("Web", "UNAUTHORIZED_ACCESS", "Pokus o přístup k /day-off s neplatným bezpečnostním klíčem.");
         return Results.Content("<h1>403 – Neplatný bezpečnostní klíč</h1>", "text/html; charset=utf-8");
     }
 
     state.MarkUnlockedByOverride("DEN_VOLNA_URL");
+    logs.Info("Web", "DAY_OFF_DIRECT", "Udělen den volna přímo přes URL odkaz (/day-off).");
     await ipc.BroadcastUnlockAsync("DEN_VOLNA_URL");
 
     var html = @"<!DOCTYPE html>
@@ -440,15 +790,18 @@ var handleStudyNowDirect = async (
     [FromQuery] string? key,
     ConfigManager cfg,
     StateManager state,
-    IpcServerService ipc) =>
+    IpcServerService ipc,
+    LogManager logs) =>
 {
     var currentConfig = cfg.Load();
     if (!string.IsNullOrEmpty(currentConfig.Server.QuickUnlockKey) && currentConfig.Server.QuickUnlockKey != key)
     {
+        logs.Warn("Web", "UNAUTHORIZED_ACCESS", "Pokus o přístup k /study-now s neplatným bezpečnostním klíčem.");
         return Results.Content("<h1>403 – Neplatný bezpečnostní klíč</h1>", "text/html; charset=utf-8");
     }
 
     state.ForceStudy();
+    logs.Info("Web", "STUDY_NOW_DIRECT", "Aktivováno okamžité studium přímo přes URL odkaz (/study-now).");
     await ipc.BroadcastForceLockAsync();
 
     var html = @"<!DOCTYPE html>
@@ -484,7 +837,7 @@ app.MapGet("/study-now", handleStudyNowDirect);
 app.MapGet("/action/study-now", handleStudyNowDirect);
 
 // ==========================================
-// 4. REST API ENDPOINTY
+// 6. REST API ENDPOINTY
 // ==========================================
 
 // Odemknout / Den volna
@@ -492,17 +845,20 @@ var unlockActionHandler = async (
     [FromQuery] string? key,
     ConfigManager cfg,
     StateManager state,
-    IpcServerService ipc) =>
+    IpcServerService ipc,
+    LogManager logs) =>
 {
     var currentConfig = cfg.Load();
     var requiredKey = currentConfig.Server.QuickUnlockKey;
 
     if (!string.IsNullOrEmpty(requiredKey) && requiredKey != key)
     {
+        logs.Warn("Web", "API_AUTH_FAILED", "Chyba autentizace pro /api/action/unlock.");
         return Results.Json(new { success = false, message = "Neplatný bezpečnostní klíč." }, statusCode: 403);
     }
 
     state.MarkUnlockedByOverride("DEN_VOLNA_API");
+    logs.Info("Web", "ACTION_UNLOCK", "Aktivován Den volna přes API tlačítko.");
     await ipc.BroadcastUnlockAsync("DEN_VOLNA_API");
 
     return Results.Ok(new { success = true, message = "Den volna byl úspěšně aktivován a počítač odemčen!" });
@@ -516,17 +872,20 @@ var lockActionHandler = async (
     [FromQuery] string? key,
     ConfigManager cfg,
     StateManager state,
-    IpcServerService ipc) =>
+    IpcServerService ipc,
+    LogManager logs) =>
 {
     var currentConfig = cfg.Load();
     var requiredKey = currentConfig.Server.QuickUnlockKey;
 
     if (!string.IsNullOrEmpty(requiredKey) && requiredKey != key)
     {
+        logs.Warn("Web", "API_AUTH_FAILED", "Chyba autentizace pro /api/action/lock.");
         return Results.Json(new { success = false, message = "Neplatný bezpečnostní klíč." }, statusCode: 403);
     }
 
     state.ForceStudy();
+    logs.Info("Web", "ACTION_LOCK", "Aktivováno Okamžité studium přes API tlačítko.");
     await ipc.BroadcastForceLockAsync();
 
     return Results.Ok(new { success = true, message = "Okamžité studium bylo aktivováno a příklady zobrazeny!" });
@@ -559,7 +918,7 @@ app.MapGet("/api/config", (ConfigManager cfg) =>
     return Results.Ok(cfg.Load());
 });
 
-app.MapPut("/api/config", ([FromBody] AppConfig newConfig, ConfigManager cfg) =>
+app.MapPut("/api/config", ([FromBody] AppConfig newConfig, ConfigManager cfg, LogManager logs) =>
 {
     var current = cfg.Load();
     if (newConfig.Math != null) current.Math = newConfig.Math;
@@ -570,7 +929,36 @@ app.MapPut("/api/config", ([FromBody] AppConfig newConfig, ConfigManager cfg) =>
     }
 
     cfg.Save(current);
+    logs.Info("Web", "CONFIG_UPDATED", "Nová pravidla byla uložena.", new Dictionary<string, string>
+    {
+        { "total_questions", current.Math.TotalQuestions.ToString() },
+        { "max_number", current.Math.MaxNumber.ToString() }
+    });
     return Results.Ok(new { success = true, message = "Pravidla byla úspěšně uložena." });
+});
+
+// ==========================================
+// 7. DIAGNOSTIKA & LOGY API ENDPOINTY
+// ==========================================
+
+// JSON seznam posledních logů
+app.MapGet("/api/logs", (LogManager logs, [FromQuery] int? limit, [FromQuery] string? level) =>
+{
+    var max = Math.Clamp(limit ?? 100, 1, 500);
+    return Results.Ok(logs.GetRecentLogs(max, level));
+});
+
+// Kompletní raw .log soubor pro stažení
+app.MapGet("/api/logs/raw", (LogManager logs) =>
+{
+    var content = logs.GetRawLogContent();
+    return Results.Content(content, "text/plain; charset=utf-8");
+});
+
+// Strukturovaný balíček pro AI analýzu
+app.MapGet("/api/diagnostics/bundle", (LogManager logs, ConfigManager cfg, StateManager state) =>
+{
+    return Results.Ok(logs.GenerateDiagnosticsBundle(cfg, state));
 });
 
 app.Run();

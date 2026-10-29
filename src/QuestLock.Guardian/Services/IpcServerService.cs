@@ -1,4 +1,4 @@
-﻿using System.IO.Pipes;
+using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -13,20 +13,27 @@ public class IpcServerService : BackgroundService
 {
     private readonly StateManager _stateManager;
     private readonly ConfigManager _configManager;
+    private readonly LogManager _logManager;
     private readonly ILogger<IpcServerService> _logger;
     private readonly List<StreamWriter> _activeClients = new();
     private readonly object _clientsLock = new();
 
-    public IpcServerService(StateManager stateManager, ConfigManager configManager, ILogger<IpcServerService> logger)
+    public IpcServerService(
+        StateManager stateManager, 
+        ConfigManager configManager, 
+        LogManager logManager,
+        ILogger<IpcServerService> logger)
     {
         _stateManager = stateManager;
         _configManager = configManager;
+        _logManager = logManager;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("IPC Named Pipe Server startuje na pipe: {PipeName}", IpcConstants.PipeName);
+        _logManager.Info("Guardian", "STARTUP", $"IPC Named Pipe Server spuštěn na pipe: {IpcConstants.PipeName}");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -46,6 +53,7 @@ public class IpcServerService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Chyba při čekání na IPC klienta");
+                _logManager.Error("Guardian", "PIPE_ERROR", $"Chyba při čekání na IPC klienta: {ex.Message}");
                 await Task.Delay(1000, stoppingToken);
             }
         }
@@ -67,6 +75,7 @@ public class IpcServerService : BackgroundService
                 }
 
                 _logger.LogInformation("Nový IPC klient připojen.");
+                _logManager.Info("Guardian", "CLIENT_CONNECT", "Nový IPC klient (Kiosk UI) připojen.");
 
                 while (!stoppingToken.IsCancellationRequested && pipeServer.IsConnected)
                 {
@@ -98,6 +107,7 @@ public class IpcServerService : BackgroundService
                 }
             }
             _logger.LogInformation("IPC klient byl odpojen.");
+            _logManager.Info("Guardian", "CLIENT_DISCONNECT", "IPC klient byl odpojen.");
         }
     }
 
@@ -114,6 +124,19 @@ public class IpcServerService : BackgroundService
 
             switch (msg.Type)
             {
+                case IpcMessageTypes.LogEvent:
+                {
+                    if (!string.IsNullOrEmpty(msg.Payload))
+                    {
+                        var log = JsonSerializer.Deserialize<LogEntryPayload>(msg.Payload);
+                        if (log != null)
+                        {
+                            _logManager.Log(log.Level, log.Source, log.Event, log.Message, log.Details);
+                        }
+                    }
+                    return null;
+                }
+
                 case IpcMessageTypes.GetInitData:
                 {
                     var isCompletedToday = state.IsCompletedToday(today);
@@ -123,6 +146,7 @@ public class IpcServerService : BackgroundService
                         MathConfig = config.Math,
                         TodayDate = today
                     };
+                    _logManager.Info("Guardian", "INIT_DATA_SENT", $"Odeslána init data: zamčeno={payload.IsLockedRequired}");
                     return new IpcMessage
                     {
                         Type = IpcMessageTypes.InitDataResponse,
@@ -140,6 +164,8 @@ public class IpcServerService : BackgroundService
                     _stateManager.MarkCompleted(today, duration);
 
                     _logger.LogInformation("Úkoly úspěšně splněny přes UI pro den {Today}.", today);
+                    _logManager.Info("UI", "MATH_COMPLETED", $"Příklady úspěšně spočítány! Doba trvání: {duration} s.", 
+                        new Dictionary<string, string> { { "duration_seconds", duration.ToString() } });
 
                     var payload = new UnlockGrantedPayload
                     {
@@ -165,6 +191,7 @@ public class IpcServerService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Chyba při zpracování IPC zprávy");
+            _logManager.Error("Guardian", "IPC_PARSE_ERROR", $"Chyba při zpracování IPC zprávy: {ex.Message}");
             return null;
         }
     }
@@ -172,6 +199,7 @@ public class IpcServerService : BackgroundService
     public async Task BroadcastUnlockAsync(string unlockedBy)
     {
         _logger.LogInformation("Vysílám UNLOCK signál všem připojeným IPC klientům ({UnlockedBy})...", unlockedBy);
+        _logManager.Info("Guardian", "UNLOCK_BROADCAST", $"Vysílám UNLOCK signál do Kiosku (odemčeno: {unlockedBy})");
 
         var payload = new UnlockGrantedPayload
         {
@@ -209,6 +237,7 @@ public class IpcServerService : BackgroundService
     public async Task BroadcastForceLockAsync()
     {
         _logger.LogInformation("Vysílám FORCE_LOCK signál všem připojeným IPC klientům...");
+        _logManager.Info("Guardian", "FORCE_LOCK_BROADCAST", "Vysílám FORCE_LOCK signál (Okamžité studium) do Kiosku");
 
         var msg = new IpcMessage
         {
@@ -235,6 +264,7 @@ public class IpcServerService : BackgroundService
             }
         }
     }
+
     private static NamedPipeServerStream CreateNamedPipeServer()
     {
         if (OperatingSystem.IsWindows())
