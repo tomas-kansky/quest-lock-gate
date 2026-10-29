@@ -1,11 +1,18 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using QuestLock.Core.Models;
 using QuestLock.Core.Storage;
 using QuestLock.Guardian.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+var options = new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : default
+};
 
-// Povolit běh jako Windows Service i běžnou konzolovou aplikaci
+var builder = WebApplication.CreateBuilder(options);
+
+// Povolit beh jako Windows Service i beznou konzolovou aplikaci
 builder.Host.UseWindowsService();
 
 // Konfigurace Kestrelu na port 5001 pro celou lokální síť
