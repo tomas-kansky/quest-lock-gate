@@ -1,4 +1,4 @@
-# QuestLock Gate
+﻿# QuestLock Gate
 
 > **Vzdělávací brána k hernímu počítači.** Aplikace pro Windows 10/11, která vyžaduje splnění denní dávky matematických úloh (tzv. *Daily Quest*) dříve, než odemkne přístup k ploše Windows a hrám.
 

@@ -29,6 +29,7 @@ dotnet publish "$ProjectRoot\src\QuestLock.UI\QuestLock.UI.csproj" `
 Write-Host "`n[3/3] Kopiruji instalacni skripty a vytvarim ZIP..." -ForegroundColor Yellow
 Copy-Item "$ProjectRoot\scripts\install.ps1" -Destination "$DistDir\install.ps1"
 Copy-Item "$ProjectRoot\scripts\uninstall.ps1" -Destination "$DistDir\uninstall.ps1"
+Copy-Item "$ProjectRoot\scripts\setup-tailscale.ps1" -Destination "$DistDir\setup-tailscale.ps1"
 Copy-Item "$ProjectRoot\README.md" -Destination "$DistDir\README.md"
 
 $ZipPath = "$ProjectRoot\dist\QuestLock-Setup.zip"
