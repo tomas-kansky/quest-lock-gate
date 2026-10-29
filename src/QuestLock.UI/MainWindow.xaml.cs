@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -149,6 +149,7 @@ public partial class MainWindow : Window
 
         _keyboardHook.Enable();
         _isLockActive = true;
+        _ = _ipcClient.SendLogAsync("INFO", "LOCK_ENGAGED", $"Kiosk uzamkl obrazovku. Vyzadovano {_targetCount} prikladu.");
     }
 
     private void UnlockAndHide()
@@ -162,6 +163,7 @@ public partial class MainWindow : Window
 
         Hide();
         _isLockActive = false;
+        _ = _ipcClient.SendLogAsync("INFO", "LOCK_DISENGAGED", "Kiosk odemkl obrazovku a uvolnil system.");
     }
 
     private void UpdateCurrentQuestionUI()
@@ -217,6 +219,7 @@ public partial class MainWindow : Window
         if (currentProblem.Verify(userAnswer))
         {
             // Správná odpověď
+            _ = _ipcClient.SendLogAsync("INFO", "ANSWER_CORRECT", $"Otazka {_currentIndex + 1}/{_targetCount}: {currentProblem.DisplayExpression} = {userAnswer} (Spravne)", new Dictionary<string, string> { { "question", currentProblem.DisplayExpression }, { "answer", userAnswer.ToString() } });
             _correctCount++;
             _currentAnswer = string.Empty;
 
@@ -234,6 +237,7 @@ public partial class MainWindow : Window
         else
         {
             // Chybná odpověď
+            _ = _ipcClient.SendLogAsync("WARN", "ANSWER_INCORRECT", $"Otazka {_currentIndex + 1}/{_targetCount}: {currentProblem.DisplayExpression} != {userAnswer} (Chyba, ocekavano: {currentProblem.ExpectedResult})", new Dictionary<string, string> { { "question", currentProblem.DisplayExpression }, { "answer", userAnswer.ToString() }, { "expected", currentProblem.ExpectedResult.ToString() } });
             FeedbackText.Text = "Výsledek není správný, zkus to znovu!";
             _currentAnswer = string.Empty;
             AnswerText.Text = string.Empty;
@@ -368,6 +372,7 @@ public partial class MainWindow : Window
 
     private void SystemEvents_PowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
+        _ = _ipcClient.SendLogAsync("INFO", "POWER_MODE_CHANGED", $"Zmena rezimu napajeni: {e.Mode}");
         if (e.Mode == PowerModes.Resume)
         {
             // Probuzení ze spánku -> ověřit, zda je nový den
@@ -383,6 +388,7 @@ public partial class MainWindow : Window
 
     private void IpcClient_OnUnlockGranted(UnlockGrantedPayload payload)
     {
+        _ = _ipcClient.SendLogAsync("INFO", "REMOTE_UNLOCK_RECEIVED", $"Kiosk prijal signal k odemceni: {payload.UnlockedBy}");
         // Vzdálené odemčení (např. mamka z mobilu přes web)
         Dispatcher.Invoke(() =>
         {
@@ -392,6 +398,7 @@ public partial class MainWindow : Window
 
     private void IpcClient_OnForceLockRequested()
     {
+        _ = _ipcClient.SendLogAsync("INFO", "FORCE_LOCK_RECEIVED", "Kiosk prijal signal k okamzitemu studiu (ForceLock).");
         // Okamžité studium vyvolané z administrace
         Dispatcher.Invoke(() =>
         {

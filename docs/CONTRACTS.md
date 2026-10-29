@@ -1,4 +1,4 @@
-# QuestLock Gate – Datové a komunikační kontrakty (Contracts Specification)
+﻿# QuestLock Gate – Datové a komunikační kontrakty (Contracts Specification)
 
 Tento dokument definuje přesné datové struktury, formáty konfiguračních a stavových souborů, komunikační protokoly IPC a REST API pro vzdálenou správu.
 

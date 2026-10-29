@@ -25,6 +25,7 @@ public static class IpcMessageTypes
     public const string UnlockGranted = "UNLOCK_GRANTED";
     public const string ForceLock = "FORCE_LOCK";
     public const string Heartbeat = "HEARTBEAT";
+    public const string LogEvent = "LOG_EVENT";
 }
 
 public class InitDataPayload
@@ -58,4 +59,22 @@ public class UnlockGrantedPayload
 
     [JsonPropertyName("unlocked_by")]
     public string UnlockedBy { get; set; } = "SYSTEM";
+}
+
+public class LogEntryPayload
+{
+    [JsonPropertyName("level")]
+    public string Level { get; set; } = "INFO";
+
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = "UI";
+
+    [JsonPropertyName("event")]
+    public string Event { get; set; } = "GENERAL";
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+
+    [JsonPropertyName("details")]
+    public Dictionary<string, string>? Details { get; set; }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
@@ -165,6 +166,44 @@ public class IpcClientService : IDisposable
         catch
         {
             // Fallback
+        }
+    }
+
+    public async Task SendLogAsync(string level, string eventName, string message, Dictionary<string, string>? details = null)
+    {
+        if (!IsConnected || _writer == null) return;
+
+        try
+        {
+            var payload = new LogEntryPayload
+            {
+                Level = level,
+                Source = "UI",
+                Event = eventName,
+                Message = message,
+                Details = details
+            };
+
+            var msg = new IpcMessage
+            {
+                Type = IpcMessageTypes.LogEvent,
+                Payload = JsonSerializer.Serialize(payload)
+            };
+
+            var json = JsonSerializer.Serialize(msg);
+            await _sendSemaphore.WaitAsync();
+            try
+            {
+                await _writer.WriteLineAsync(json);
+            }
+            finally
+            {
+                _sendSemaphore.Release();
+            }
+        }
+        catch
+        {
+            // Logging nesmí shodit aplikaci
         }
     }
 
