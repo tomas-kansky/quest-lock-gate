@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using QuestLock.Core.Models;
 
 namespace QuestLock.Core.Storage;
@@ -150,6 +150,7 @@ public class LogManager
                 dotnet_version = Environment.Version.ToString(),
                 process_uptime = Environment.TickCount64 / 1000
             },
+            network = QuestLock.Core.Network.NetworkHelper.GetActiveNetworkInfo(),
             config = currentConfig,
             state = currentState,
             logs = recentLogs

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using QuestLock.Core.Models;
 using QuestLock.Core.Storage;
@@ -63,6 +63,18 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
     if (ops.Contains("multiply")) opsList.Add("Násobení");
     if (ops.Contains("divide")) opsList.Add("Dělení");
     var opsFormatted = opsList.Count > 0 ? string.Join(", ", opsList) : "Žádné";
+    var netInfo = QuestLock.Core.Network.NetworkHelper.GetActiveNetworkInfo();
+    var tailscaleBannerHtml = netInfo.HasTailscale
+        ? $@"<div style=""background: #0284c720; border: 1px solid #0284c7; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;"">
+                <div>
+                    <span style=""color: #38bdf8; font-weight: 700;"">🌐 Vzdálený přístup (Tailscale):</span>
+                    <span style=""color: #f8fafc; font-family: monospace; margin-left: 6px;"">http://{netInfo.TailscaleIp}:5001</span>
+                </div>
+                <span style=""background: #0284c7; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700;"">AKTIVNÍ</span>
+           </div>"
+        : @"<div style=""background: #1e293b; border: 1px dashed #334155; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: #94a3b8;"">
+                ℹ️ Vzdálený přístup přes internet není nakonfigurován (lze kdykoliv aktivovat přes Tailscale).
+           </div>";
 
     var html = $@"<!DOCTYPE html>
 <html lang=""cs"">
