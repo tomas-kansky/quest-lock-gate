@@ -108,4 +108,22 @@ public class StateManager
             Save(state);
         }
     }
+
+    public void ForceStudy()
+    {
+        lock (_lock)
+        {
+            var state = Load();
+            state.IsLocked = true;
+            state.LastCompletedDate = null;
+            state.TodayStats = new TodayStats();
+            state.ManualOverride = new ManualOverride
+            {
+                Active = false,
+                UnlockedBy = null,
+                UnlockedAt = null
+            };
+            Save(state);
+        }
+    }
 }

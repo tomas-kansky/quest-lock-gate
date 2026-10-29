@@ -19,6 +19,7 @@ public class IpcClientService : IDisposable
     private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
 
     public event Action<UnlockGrantedPayload>? OnUnlockGranted;
+    public event Action? OnForceLockRequested;
     public event Action<bool>? OnConnectionStatusChanged;
 
     public bool IsConnected => _pipeClient?.IsConnected ?? false;
@@ -82,6 +83,10 @@ public class IpcClientService : IDisposable
                     : new UnlockGrantedPayload();
 
                 OnUnlockGranted?.Invoke(payload ?? new UnlockGrantedPayload());
+            }
+            else if (msg.Type == IpcMessageTypes.ForceLock)
+            {
+                OnForceLockRequested?.Invoke();
             }
         }
         catch

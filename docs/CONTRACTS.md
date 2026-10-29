@@ -179,20 +179,26 @@ Aktualizace nastavení z webového rozhraní (vyžaduje `Authorization: Bearer <
   { "success": true, "message": "Konfigurace byla uložena." }
   ```
 
-#### 5. `POST /api/action/unlock`
-Manuální vzdálené odemčení (např. odměna pro bratra bez nutnosti počítání).
+#### 5. `POST /api/action/unlock` a `GET /api/action/unlock`
+Udělení **Dne volna** – manuální vzdálené odemčení (zrušení dnešních příkladů).
 - **Response (200 OK):**
   ```json
-  { "success": true, "message": "Počítač byl vzdáleně odemčen." }
+  { "success": true, "message": "Den volna byl úspěšně aktivován a počítač odemčen!" }
   ```
 
-#### 6. `GET /unlock` (1-Click odemčení pro rodiče / mamku z mobilu)
-Jednoduché webové rozhraní optimalizované pro displeje chytrých telefonů:
-- **URL:** `http://<IP_PC>:5001/unlock` (nebo s tokenem v URL `http://<IP_PC>:5001/unlock?key=mamka`)
-- **Chování:** 
-  - Zobrazí responzivní stránku s informací o stavu zámku a velkým tlačítkem **„🔓 Odemknout počítač“**.
-  - Při stisknutí tlačítka (nebo při přímém volání s parametrem `?auto=true`) okamžitě odemkne počítač a v klientském UI ihned skryje zámek.
-  - Vrací vizuální zpětnou vazbu s animací úspěšného odemčení.
+#### 6. `POST /api/action/lock` a `GET /api/action/lock`
+Aktivace **Okamžitého studia** – okamžitě vyvolá novou sadu příkladů na počítači i v případě, že bratr dnes již úkoly splnil.
+- **Response (200 OK):**
+  ```json
+  { "success": true, "message": "Okamžité studium bylo aktivováno a příklady zobrazeny!" }
+  ```
+
+#### 7. Webové stránky a přímé URL akce
+- **`GET /administration`**: Hlavní administrační stránka s přehledem stavu, tlačítky pro Den volna, Okamžité studium a odkazem na nastavení.
+- **`GET /settings`**: Stránka pro editaci počtu otázek, `max_number` a povolených početních operací.
+- **`GET /day-off` (nebo `/action/day-off`)**: Přímý URL odkaz pro udělení Dne volna – po otevření v prohlížeči rovnou uvolní počítač a zobrazí potvrzení.
+- **`GET /study-now` (nebo `/action/study-now`)**: Přímý URL odkaz pro spuštění Okamžitého studia – po otevření v prohlížeči rovnou uzamkne počítač novými příklady a zobrazí potvrzení.
+- **`GET /unlock` a `GET /`**: Automatické přesměrování na `/administration`.
 
 ---
 
