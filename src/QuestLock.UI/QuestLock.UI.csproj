@@ -10,6 +10,7 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
 </Project>

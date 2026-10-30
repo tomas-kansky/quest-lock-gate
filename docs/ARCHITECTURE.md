@@ -1,4 +1,4 @@
-# QuestLock Gate – Technická architektura (RFC / System Specification)
+﻿# QuestLock Gate – Technická architektura (RFC / System Specification)
 
 Tento dokument představuje ucelený systémový návrh a specifikaci architektury aplikace **QuestLock Gate** – nástroje pro řízení přístupu k hernímu počítači formou denních vzdělávacích výzev (tzv. "Daily Quests").
 
@@ -171,3 +171,16 @@ Služba `QuestLock.Guardian` hostuje odlehčený webový server (ASP.NET Core Ke
 4. **Odložená instalace:**
    - Update neprobíhá před vyřešením úloh, aby uživatel nemohl využít pád nebo restart jako způsob obcházení.
    - Po úspěšném odemčení počítače služba zavolá aplikaci updatu na pozadí.
+
+---
+
+## 8. Backlog a budoucí rozšíření
+
+### Auto-Updater & 1-Click Remote Update (Priorita v1.2.0)
+- **1-Click Update v administraci:**
+  - Zobrazení informace o dostupné verzi na /administration a /settings.
+  - Tlačítko pro okamžitou aktualizaci – systémová služba stáhne release ZIP z GitHubu, bezpečně vymění programové soubory a restartuje procesy.
+- **Tichá noční kontrola:**
+  - Automatická kontrola nových verzí na GitHub Releases API v nočních hodinách (např. ve 4:00 ráno).
+- **Notifikace pro správce:**
+  - Možnost odesílání webhooků na Discord/Telegram o stavu zamykání a provedených aktualizacích.
