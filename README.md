@@ -14,7 +14,7 @@ Instalace je plně automatizovaná. Cílový počítač **nemusí mít nainstalo
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-irm https://github.com/tomas-kansky/quest-lock-gate/releases/download/v1.0.0/QuestLock-Setup.zip -OutFile "$env:TEMP\QuestLock-Setup.zip"
+irm https://github.com/tomas-kansky/quest-lock-gate/releases/download/v1.1.0/QuestLock-Setup.zip -OutFile "$env:TEMP\QuestLock-Setup.zip"
 Expand-Archive "$env:TEMP\QuestLock-Setup.zip" -DestinationPath "$env:TEMP\QuestLock-Setup" -Force
 & "$env:TEMP\QuestLock-Setup\install.ps1"
 ```
