@@ -38,7 +38,7 @@ public class RulesConfig
     public bool DailyGatekeeperEnabled { get; set; } = true;
 
     [JsonPropertyName("auto_update_enabled")]
-    public bool AutoUpdateEnabled { get; set; } = false;
+    public bool AutoUpdateEnabled { get; set; } = true;
 
     [JsonPropertyName("github_repo_url")]
     public string GithubRepoUrl { get; set; } = "https://github.com/tomas-kansky/quest-lock-gate";

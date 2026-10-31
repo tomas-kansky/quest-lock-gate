@@ -176,11 +176,17 @@ Služba `QuestLock.Guardian` hostuje odlehčený webový server (ASP.NET Core Ke
 
 ## 8. Backlog a budoucí rozšíření
 
-### Auto-Updater & 1-Click Remote Update (Priorita v1.2.0)
+### Auto-Updater & 1-Click Remote Update (Implementováno)
+- **Plně automatická kontrola po odemknutí (Post-Unlock Auto-Updater):**
+  - Jelikož herní počítač nebývá v noci zapnutý, kontrola a instalace aktualizací probíhá **výhradně po úspěšném odemčení** (dokončení matematických úloh nebo udělení dne volna).
+  - Tím je zaručeno, že uživatel má aktivní internetové připojení a testy nejsou nikdy přerušeny neočekávaným restartem.
+- **Detached Worker Process (`scripts/update-worker.ps1`):**
+  - Kvůli uzamčeným souborům `.exe`/`.dll` v `C:\Program Files\QuestLock` systémová služba předá řízení nezávislému PowerShell procesu běžícímu pod účtem `NT AUTHORITY\SYSTEM`.
+  - Worker zastaví `QuestLock.Guardian`, bezpečně přepíše binárky novou verzí z rozbaleného balíčku `QuestLock-Setup.zip`, službu znovu nastartuje a automaticky obnoví UI Kiosku v relaci přihlášeného uživatele pomocí dočasné systémové úlohy (`schtasks.exe /ru "$consoleUser"`).
 - **1-Click Update v administraci:**
-  - Zobrazení informace o dostupné verzi na /administration a /settings.
-  - Tlačítko pro okamžitou aktualizaci – systémová služba stáhne release ZIP z GitHubu, bezpečně vymění programové soubory a restartuje procesy.
-- **Tichá noční kontrola:**
-  - Automatická kontrola nových verzí na GitHub Releases API v nočních hodinách (např. ve 4:00 ráno).
+  - Možnost manuální kontroly a okamžité instalace přes webové rozhraní `/administration`.
+  - Konfigurace v `/settings` umožňující automatické aktualizace povolit/zakázat a upravit URL repozitáře.
+
+### Backlog budoucích rozšíření
 - **Notifikace pro správce:**
   - Možnost odesílání webhooků na Discord/Telegram o stavu zamykání a provedených aktualizacích.
