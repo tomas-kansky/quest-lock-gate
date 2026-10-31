@@ -200,6 +200,43 @@ Aktivace **Okamžitého studia** – okamžitě vyvolá novou sadu příkladů n
 - **`GET /study-now` (nebo `/action/study-now`)**: Přímý URL odkaz pro spuštění Okamžitého studia – po otevření v prohlížeči rovnou uzamkne počítač novými příklady a zobrazí potvrzení.
 - **`GET /unlock` a `GET /`**: Automatické přesměrování na `/administration`.
 
+#### 8. Auto-Updater API
+- **`GET /api/update/status`**: Vrátí stav aktualizátoru, aktuální a nejnovější verzi na GitHubu, čas poslední kontroly a zda je dostupný update.
+  - **Response (200 OK):**
+    ```json
+    {
+      "current_version": "1.1.0",
+      "latest_version": "1.2.0",
+      "is_update_available": true,
+      "auto_update_enabled": true,
+      "github_repo": "https://github.com/tomas-kansky/quest-lock-gate",
+      "last_check_time": "2026-10-31T18:15:00Z",
+      "is_updating": false,
+      "status_message": null,
+      "release_notes": "Popis novinek verze v1.2.0..."
+    }
+    ```
+- **`POST /api/update/check`**: Okamžitě provede online kontrolu GitHub Releases API.
+  - **Response (200 OK):**
+    ```json
+    {
+      "success": true,
+      "current_version": "1.1.0",
+      "latest_version": "1.2.0",
+      "is_update_available": true,
+      "error_message": null,
+      "release_info": { ... }
+    }
+    ```
+- **`POST /api/update/apply`**: Spustí bezobslužné stažení nového balíčku a aktivuje worker proces `update-worker.ps1` na pozadí.
+  - **Response (200 OK):**
+    ```json
+    {
+      "success": true,
+      "message": "Aktualizace byla úspěšně zahájena na pozadí. Systémová služba a Kiosk se restartují."
+    }
+    ```
+
 ---
 
 ## 5. Algoritmický kontrakt pro generování úloh (Math Generator Contract)

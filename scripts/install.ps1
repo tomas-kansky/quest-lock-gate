@@ -73,6 +73,9 @@ if (Test-Path "$ScriptDir\setup-tailscale.ps1") {
 if (Test-Path "$ScriptDir\uninstall.ps1") {
     Copy-Item "$ScriptDir\uninstall.ps1" -Destination "$InstallDir\uninstall.ps1" -Force
 }
+if (Test-Path "$ScriptDir\update-worker.ps1") {
+    Copy-Item "$ScriptDir\update-worker.ps1" -Destination "$InstallDir\update-worker.ps1" -Force
+}
 
 # 4. Inicializace datove slozky ProgramData
 Write-Host ""

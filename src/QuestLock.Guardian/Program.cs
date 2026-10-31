@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using QuestLock.Core.Common;
 using QuestLock.Core.Models;
 using QuestLock.Core.Storage;
+using QuestLock.Core.Updates;
 using QuestLock.Guardian.Services;
 
 var options = new WebApplicationOptions
@@ -31,6 +33,9 @@ builder.Services.AddSingleton(stateManager);
 builder.Services.AddSingleton(logManager);
 builder.Services.AddSingleton<IpcServerService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<IpcServerService>());
+builder.Services.AddSingleton<UpdateManager>();
+builder.Services.AddSingleton<UpdateService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<UpdateService>());
 
 logManager.Info("Guardian", "STARTUP", "QuestLock Guardian Service nastartovala Kestrel web server na portu 5001.");
 
@@ -44,10 +49,35 @@ app.MapGet("/unlock", () => Results.Redirect("/administration"));
 // ==========================================
 // 1. HLAVNÍ STRÁNKA ADMINISTRACE (/administration)
 // ==========================================
-app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpRequest request) =>
+app.MapGet("/administration", (ConfigManager cfg, StateManager state, UpdateService updateService, HttpRequest request) =>
 {
     var currentConfig = cfg.Load();
     var currentState = state.Load();
+    var lastCheck = updateService.LastCheckResult;
+    var hasUpdate = lastCheck?.IsUpdateAvailable ?? false;
+    var latestVer = lastCheck?.LatestVersion ?? AppInfo.Version;
+    var isUpdating = updateService.IsUpdating;
+
+    string updateBadgeHtml;
+    string updateStatusText;
+    string applyBtnHtml = "";
+
+    if (isUpdating)
+    {
+        updateBadgeHtml = @"<span style=""background: #ca8a04; color: #fef08a; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700;"">AKTUALIZUJE SE...</span>";
+        updateStatusText = updateService.UpdateStatusMessage ?? "Probíhá stahování a instalace...";
+    }
+    else if (hasUpdate)
+    {
+        updateBadgeHtml = $@"<span style=""background: #15803d; color: #bbf7d0; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700;"">NOVÁ VERZE v{latestVer}</span>";
+        updateStatusText = $"Je k dispozici nová verze v{latestVer}!";
+        applyBtnHtml = $@"<button id=""btnApplyUpdate"" class=""action-btn btn-dayoff"" style=""font-size: 14px; padding: 10px; margin-bottom: 0;"" onclick=""applyUpdate()"">🚀 Aktualizovat na v{latestVer}</button>";
+    }
+    else
+    {
+        updateBadgeHtml = @"<span style=""background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;"">AKTUÁLNÍ</span>";
+        updateStatusText = "Aplikace je aktuální.";
+    }
     var today = DateTime.Now.ToString("yyyy-MM-dd");
     var isCompleted = currentState.IsCompletedToday(today);
     var isLocked = currentState.IsLocked && !isCompleted;
@@ -201,6 +231,25 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
                 ⚙️ Upravit nastavení pravidel (/settings)
             </a>
         </div>
+
+        <div class=""card"">
+            <h2>Aktualizace aplikace (Auto Updater)</h2>
+            <div style=""display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;"">
+                <div>
+                    <div style=""font-size: 13px; color: #94a3b8;"">Nainstalovaná verze: <strong style=""color: #f8fafc;"">v{AppInfo.Version}</strong></div>
+                    <div id=""updateStatusText"" style=""font-size: 12px; color: #38bdf8; margin-top: 4px;"">{updateStatusText}</div>
+                </div>
+                <div id=""updateBadge"">
+                    {updateBadgeHtml}
+                </div>
+            </div>
+            <div style=""display: flex; gap: 8px;"">
+                <button id=""btnCheckUpdate"" class=""action-btn"" style=""background: #334155; font-size: 14px; padding: 10px; margin-bottom: 0;"" onclick=""checkUpdate()"">
+                    🔍 Zkontrolovat
+                </button>
+                {applyBtnHtml}
+            </div>
+        </div>
     </div>
 
     <script>
@@ -242,6 +291,45 @@ app.MapGet("/administration", (ConfigManager cfg, StateManager state, HttpReques
             }}).catch(() => {{
                 prompt('Zkopírujte si odkaz:', txt);
             }});
+        }}
+
+        async function checkUpdate() {{
+            const btn = document.getElementById('btnCheckUpdate');
+            btn.disabled = true;
+            btn.innerText = 'Kontroluji...';
+            try {{
+                const resp = await fetch('/api/update/check', {{ method: 'POST' }});
+                const data = await resp.json();
+                if (data.is_update_available) {{
+                    location.reload();
+                }} else if (!data.success) {{
+                    alert('Chyba: ' + (data.error_message || 'Nelze ověřit aktualizace'));
+                }} else {{
+                    document.getElementById('updateStatusText').innerText = 'Máte nejnovější verzi (v' + data.current_version + ').';
+                }}
+            }} catch (err) {{
+                alert('Chyba při kontrole aktualizací: ' + err);
+            }} finally {{
+                btn.disabled = false;
+                btn.innerText = '🔍 Zkontrolovat';
+            }}
+        }}
+
+        async function applyUpdate() {{
+            const btn = document.getElementById('btnApplyUpdate');
+            if (btn) {{
+                btn.disabled = true;
+                btn.innerText = 'Instaluji...';
+            }}
+            try {{
+                const resp = await fetch('/api/update/apply', {{ method: 'POST' }});
+                const data = await resp.json();
+                alert(data.message || 'Aktualizace byla zahájena. Služba se za chvíli restartuje.');
+                setTimeout(() => location.reload(), 4000);
+            }} catch (err) {{
+                alert('Chyba při spuštění aktualizace: ' + err);
+                if (btn) btn.disabled = false;
+            }}
         }}
     </script>
 </body>
@@ -679,6 +767,21 @@ app.MapGet("/settings", (ConfigManager cfg, StateManager state) =>
             <button class=""btn-save"" onclick=""saveSettings()"">💾 Uložit nová pravidla</button>
             <div id=""saveMsg"" class=""msg""></div>
         </div>
+
+        <div class=""card"">
+            <h2>Automatické aktualizace (Auto Updater)</h2>
+            <div class=""form-group"">
+                <label class=""checkbox-label"" style=""margin-bottom: 8px;"">
+                    <input type=""checkbox"" id=""autoUpdateEnabled"" {(currentConfig.Rules.AutoUpdateEnabled ? "checked" : "")}>
+                    <span style=""font-weight: 600;"">Automaticky stahovat a instalovat aktualizace po odemknutí</span>
+                </label>
+                <div class=""desc"">Po každém odemčení (splnění příkladů nebo udělení dne volna) služba na pozadí zkontroluje GitHub a bezobslužně provede update.</div>
+            </div>
+            <div class=""form-group"" style=""margin-bottom: 0;"">
+                <label for=""githubRepoUrl"">GitHub Repozitář</label>
+                <input type=""text"" id=""githubRepoUrl"" value=""{currentConfig.Rules.GithubRepoUrl}"">
+            </div>
+        </div>
     </div>
 
     <script>
@@ -699,6 +802,9 @@ app.MapGet("/settings", (ConfigManager cfg, StateManager state) =>
                 return;
             }}
 
+            const autoUpdate = document.getElementById('autoUpdateEnabled').checked;
+            const githubRepo = document.getElementById('githubRepoUrl').value.trim() || 'https://github.com/tomas-kansky/quest-lock-gate';
+
             const payload = {{
                 version: 1,
                 server: {{
@@ -706,7 +812,9 @@ app.MapGet("/settings", (ConfigManager cfg, StateManager state) =>
                     quick_unlock_key: quickKey
                 }},
                 rules: {{
-                    daily_gatekeeper_enabled: true
+                    daily_gatekeeper_enabled: true,
+                    auto_update_enabled: autoUpdate,
+                    github_repo_url: githubRepo
                 }},
                 math: {{
                     total_questions: totalQuestions,
@@ -971,6 +1079,55 @@ app.MapGet("/api/logs/raw", (LogManager logs) =>
 app.MapGet("/api/diagnostics/bundle", (LogManager logs, ConfigManager cfg, StateManager state) =>
 {
     return Results.Ok(logs.GenerateDiagnosticsBundle(cfg, state));
+});
+
+// ==========================================
+// 8. AUTO-UPDATER API ENDPOINTY
+// ==========================================
+
+// Stav aktualizací a aktuální verze
+app.MapGet("/api/update/status", (UpdateService updateService, ConfigManager cfg) =>
+{
+    var config = cfg.Load();
+    var lastCheck = updateService.LastCheckResult;
+    return Results.Ok(new
+    {
+        current_version = AppInfo.Version,
+        latest_version = lastCheck?.LatestVersion ?? AppInfo.Version,
+        is_update_available = lastCheck?.IsUpdateAvailable ?? false,
+        auto_update_enabled = config.Rules.AutoUpdateEnabled,
+        github_repo = config.Rules.GithubRepoUrl,
+        last_check_time = updateService.LastCheckTime,
+        is_updating = updateService.IsUpdating,
+        status_message = updateService.UpdateStatusMessage,
+        release_notes = lastCheck?.ReleaseInfo?.ReleaseNotes
+    });
+});
+
+// Vynucená okamžitá kontrola aktualizací
+app.MapPost("/api/update/check", async (UpdateService updateService) =>
+{
+    var result = await updateService.CheckForUpdateAsync();
+    return Results.Ok(new
+    {
+        success = string.IsNullOrEmpty(result.ErrorMessage),
+        current_version = result.CurrentVersion,
+        latest_version = result.LatestVersion,
+        is_update_available = result.IsUpdateAvailable,
+        error_message = result.ErrorMessage,
+        release_info = result.ReleaseInfo
+    });
+});
+
+// Vynucené okamžité stažení a spuštění instalace
+app.MapPost("/api/update/apply", async (UpdateService updateService) =>
+{
+    var (success, message) = await updateService.ApplyUpdateAsync();
+    return Results.Ok(new
+    {
+        success,
+        message
+    });
 });
 
 app.Run();

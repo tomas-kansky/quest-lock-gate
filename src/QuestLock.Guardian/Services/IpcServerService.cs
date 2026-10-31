@@ -18,6 +18,11 @@ public class IpcServerService : BackgroundService
     private readonly List<StreamWriter> _activeClients = new();
     private readonly object _clientsLock = new();
 
+    /// <summary>
+    /// Udalost vyvolana pri jakemkoliv odemceni systemu (splneni ukolu, vzdaleny den volna apod.).
+    /// </summary>
+    public event Action<string>? OnUnlocked;
+
     public IpcServerService(
         StateManager stateManager, 
         ConfigManager configManager, 
@@ -140,12 +145,17 @@ public class IpcServerService : BackgroundService
                 case IpcMessageTypes.GetInitData:
                 {
                     var isCompletedToday = state.IsCompletedToday(today);
+                    var isLockedRequired = !isCompletedToday && state.IsLocked;
                     var payload = new InitDataPayload
                     {
-                        IsLockedRequired = !isCompletedToday && state.IsLocked,
+                        IsLockedRequired = isLockedRequired,
                         MathConfig = config.Math,
                         TodayDate = today
                     };
+                    if (!isLockedRequired)
+                    {
+                        OnUnlocked?.Invoke("ALREADY_UNLOCKED");
+                    }
                     _logManager.Info("Guardian", "INIT_DATA_SENT", $"Odeslána init data: zamčeno={payload.IsLockedRequired}");
                     return new IpcMessage
                     {
@@ -162,6 +172,8 @@ public class IpcServerService : BackgroundService
 
                     var duration = submit?.DurationSeconds ?? 0;
                     _stateManager.MarkCompleted(today, duration);
+
+                    OnUnlocked?.Invoke("MATH_COMPLETION");
 
                     _logger.LogInformation("Úkoly úspěšně splněny přes UI pro den {Today}.", today);
                     _logManager.Info("UI", "MATH_COMPLETED", $"Příklady úspěšně spočítány! Doba trvání: {duration} s.", 
@@ -200,6 +212,8 @@ public class IpcServerService : BackgroundService
     {
         _logger.LogInformation("Vysílám UNLOCK signál všem připojeným IPC klientům ({UnlockedBy})...", unlockedBy);
         _logManager.Info("Guardian", "UNLOCK_BROADCAST", $"Vysílám UNLOCK signál do Kiosku (odemčeno: {unlockedBy})");
+
+        OnUnlocked?.Invoke(unlockedBy);
 
         var payload = new UnlockGrantedPayload
         {
