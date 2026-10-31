@@ -39,7 +39,7 @@ public class UpdateManagerTests
     {
         Assert.False(string.IsNullOrWhiteSpace(AppInfo.Version));
         Assert.False(string.IsNullOrWhiteSpace(AppInfo.DefaultGithubRepo));
-        Assert.Equal("1.1.0", AppInfo.Version);
+        Assert.Equal("1.2.0", AppInfo.Version);
         Assert.Equal("tomas-kansky/quest-lock-gate", AppInfo.DefaultGithubRepo);
     }
 
